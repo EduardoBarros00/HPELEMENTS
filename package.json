@@ -1,0 +1,23 @@
+{
+  "name": "botwl",
+  "version": "1.0.0",
+  "description": "Bot do Discord rodando no Render",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "build": "npm install"
+  },
+  "dependencies": {
+    "discord.js": "^14.7.1",
+    "dotenv": "^16.0.3",
+    "express": "^4.18.2",
+    "sequelize": "^6.32.0",
+    "sqlite3": "^5.1.6",
+    "axios": "^1.6.2",
+    "moment-timezone": "^0.5.40"
+  },
+  "engines": {
+    "node": "18.x"
+  }
+}
