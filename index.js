@@ -61,4 +61,4 @@ client.on('messageCreate', async message => {
     }
 });
 
-client.login('SEU_TOKEN_AQUI');
+client.login('MTM1MDEyNzY1NTg2MDU3MjE3MQ.GbQEPk.dX_WqM4Mr4vCooEXQQkdfPbnGjrfbYKj75FMLc');
