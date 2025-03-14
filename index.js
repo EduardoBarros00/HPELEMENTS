@@ -23,12 +23,11 @@ app.listen(PORT, () => {
     console.log(`🌍 Servidor HTTP rodando na porta ${PORT}`);
 });
 
-// Criar cliente do bot
+// Criar cliente do bot com intents permitidas
 const client = new Client({
     intents: [
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMembers,
-        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.Guilds, // Necessário para interações
+        GatewayIntentBits.GuildMembers, // Apenas se precisar gerenciar membros
     ],
 });
 
@@ -108,5 +107,13 @@ client.once("ready", async () => {
     }
 });
 
-// Logar o bot
-client.login(process.env.TOKEN);
+// Logar o bot com token correto
+if (!process.env.TOKEN) {
+    console.error("❌ Token do bot não foi encontrado. Verifique o arquivo .env ou as variáveis de ambiente.");
+    process.exit(1);
+}
+
+client.login(process.env.TOKEN).catch(err => {
+    console.error("❌ Erro ao logar o bot. Verifique se o token é válido.", err);
+    process.exit(1);
+});
