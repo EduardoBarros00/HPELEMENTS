@@ -114,8 +114,13 @@ client.on("interactionCreate", async (interaction) => {
 });
 
 client.once("ready", async () => {
-    const channel = await client.channels.fetch(CHANNEL_SETUP_HOSPITAL).catch(console.error);
-    if (channel) {
+    try {
+        const channel = await client.channels.fetch(CHANNEL_SETUP_HOSPITAL);
+        if (!channel) {
+            console.error(`❌ O canal com ID ${CHANNEL_SETUP_HOSPITAL} não foi encontrado! Verifique se o bot tem acesso.`);
+            return;
+        }
+        
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
                 .setCustomId("setup_hospital")
@@ -126,6 +131,8 @@ client.once("ready", async () => {
             content: "Clique no botão abaixo para configurar o hospital RP!",
             components: [row],
         });
+    } catch (error) {
+        console.error("❌ Erro ao acessar o canal do bot. Verifique as permissões ou se o canal ainda existe.", error);
     }
 });
 
