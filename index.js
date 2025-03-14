@@ -1,66 +1,64 @@
-import discord
-from discord.ext import commands
+const { Client, GatewayIntentBits } = require('discord.js');
 
-# Configuração do bot
-intents = discord.Intents.default()
-intents.guilds = True
-intents.guild_messages = True
-intents.message_content = True
-intents.members = True
-
-bot = commands.Bot(command_prefix="!", intents=intents)
-
-# Lista de cargos para o hospital
-HOSPITAL_ROLES = [
-    "Diretor", "Médico", "Enfermeiro", "Paramédico", "Paciente", "Segurança"
-]
-
-# Lista de canais para o hospital
-HOSPITAL_CHANNELS = {
-    "text": [
-        "📢・anúncios",
-        "💬・chat-geral",
-        "📑・relatórios",
-        "🚨・chamados-emergência",
-        "📋・registros-hospitalares"
-    ],
-    "voice": [
-        "📞・sala-de-reunião",
-        "🩺・atendimento",
-        "📻・rádio-emergência"
+const client = new Client({
+    intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.GuildMembers,
+        GatewayIntentBits.MessageContent
     ]
-}
+});
 
-@bot.event
-async def on_ready():
-    print(f"{bot.user} está online!")
+client.once('ready', () => {
+    console.log(`${client.user.tag} está online!`);
+});
 
-@bot.command()
-@commands.has_permissions(administrator=True)
-async def setup_hospital(ctx):
-    guild = ctx.guild
-    
-    await ctx.send("🛠️ Configurando o servidor para o hospital... Aguarde.")
-    
-    # Criando os cargos
-    for role_name in HOSPITAL_ROLES:
-        if not discord.utils.get(guild.roles, name=role_name):
-            await guild.create_role(name=role_name)
-            await ctx.send(f"✅ Cargo criado: {role_name}")
-    
-    # Criando as categorias e canais
-    category = await guild.create_category("🏥・Hospital RP")
-    
-    for channel_name in HOSPITAL_CHANNELS["text"]:
-        await guild.create_text_channel(channel_name, category=category)
-        await ctx.send(f"✅ Canal de texto criado: {channel_name}")
-    
-    for channel_name in HOSPITAL_CHANNELS["voice"]:
-        await guild.create_voice_channel(channel_name, category=category)
-        await ctx.send(f"✅ Canal de voz criado: {channel_name}")
-    
-    await ctx.send("🏥 Configuração do hospital concluída com sucesso!")
+client.on('messageCreate', async message => {
+    if (message.content === '!setup_hospital' && message.member.permissions.has('ADMINISTRATOR')) {
+        let guild = message.guild;
 
-# Rodar o bot
-TOKEN = "SEU_TOKEN_AQUI"
-bot.run(TOKEN)
+        const roles = ["Diretor", "Médico", "Enfermeiro", "Paramédico", "Paciente", "Segurança"];
+        const textChannels = ["📢・anúncios", "💬・chat-geral", "📑・relatórios", "🚨・chamados-emergência", "📋・registros-hospitalares"];
+        const voiceChannels = ["📞・sala-de-reunião", "🩺・atendimento", "📻・rádio-emergência"];
+
+        await message.channel.send("🛠️ Configurando o servidor para o hospital... Aguarde.");
+
+        // Criando os cargos
+        for (let roleName of roles) {
+            if (!guild.roles.cache.find(role => role.name === roleName)) {
+                await guild.roles.create({ name: roleName });
+                await message.channel.send(`✅ Cargo criado: ${roleName}`);
+            }
+        }
+
+        // Criando categoria
+        let category = await guild.channels.create({
+            name: "🏥・Hospital RP",
+            type: 4
+        });
+
+        // Criando canais de texto
+        for (let channelName of textChannels) {
+            await guild.channels.create({
+                name: channelName,
+                type: 0,
+                parent: category.id
+            });
+            await message.channel.send(`✅ Canal de texto criado: ${channelName}`);
+        }
+
+        // Criando canais de voz
+        for (let channelName of voiceChannels) {
+            await guild.channels.create({
+                name: channelName,
+                type: 2,
+                parent: category.id
+            });
+            await message.channel.send(`✅ Canal de voz criado: ${channelName}`);
+        }
+
+        await message.channel.send("🏥 Configuração do hospital concluída com sucesso!");
+    }
+});
+
+client.login('SEU_TOKEN_AQUI');
