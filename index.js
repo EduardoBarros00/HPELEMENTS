@@ -23,11 +23,12 @@ app.listen(PORT, () => {
     console.log(`🌍 Servidor HTTP rodando na porta ${PORT}`);
 });
 
-// Criar cliente do bot com intents permitidas
+// Criar cliente do bot com intents ajustadas
 const client = new Client({
     intents: [
-        GatewayIntentBits.Guilds, // Necessário para interações
-        GatewayIntentBits.GuildMembers, // Apenas se precisar gerenciar membros
+        GatewayIntentBits.Guilds, // Necessário para interações e eventos básicos
+        GatewayIntentBits.GuildMessages, // Necessário se o bot precisar ler mensagens
+        GatewayIntentBits.GuildMessageReactions, // Caso precise de reações
     ],
 });
 
@@ -38,10 +39,15 @@ client.once("ready", async () => {
 // IDs dos canais
 const CHANNEL_SETUP_HOSPITAL = "1338158040767139923";
 
-// Configuração do hospital
-const HOSPITAL_ROLES = [
-    "Diretor", "Médico", "Enfermeiro", "Paramédico", "Paciente", "Segurança"
-];
+// Configuração do hospital com permissões
+const HOSPITAL_ROLES = {
+    "Diretor": [PermissionsBitField.Flags.Administrator],
+    "Médico": [PermissionsBitField.Flags.ManageChannels, PermissionsBitField.Flags.ManageMessages],
+    "Enfermeiro": [PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ViewChannel],
+    "Paramédico": [PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ViewChannel],
+    "Paciente": [PermissionsBitField.Flags.ViewChannel],
+    "Segurança": [PermissionsBitField.Flags.KickMembers, PermissionsBitField.Flags.BanMembers]
+};
 
 const HOSPITAL_CHANNELS = {
     text: [
@@ -66,25 +72,41 @@ client.on("interactionCreate", async (interaction) => {
         
         await interaction.reply({ content: "🛠️ Configurando o servidor para o hospital... Aguarde.", ephemeral: true });
         
-        // Criando os cargos
-        for (const roleName of HOSPITAL_ROLES) {
+        // Criando os cargos com permissões adequadas
+        for (const [roleName, permissions] of Object.entries(HOSPITAL_ROLES)) {
             if (!guild.roles.cache.find(role => role.name === roleName)) {
-                await guild.roles.create({ name: roleName, permissions: [] });
+                await guild.roles.create({ name: roleName, permissions });
             }
         }
 
-        // Criando as categorias e canais
+        // Criando as categorias e canais com permissões adequadas
         const category = await guild.channels.create({
             name: "🏥・Hospital RP",
             type: 4
         });
 
         for (const channelName of HOSPITAL_CHANNELS.text) {
-            await guild.channels.create({ name: channelName, type: 0, parent: category.id });
+            await guild.channels.create({
+                name: channelName,
+                type: 0,
+                parent: category.id,
+                permissionOverwrites: Object.entries(HOSPITAL_ROLES).map(([roleName, permissions]) => {
+                    const role = guild.roles.cache.find(r => r.name === roleName);
+                    return role ? { id: role.id, allow: permissions } : null;
+                }).filter(Boolean)
+            });
         }
 
         for (const channelName of HOSPITAL_CHANNELS.voice) {
-            await guild.channels.create({ name: channelName, type: 2, parent: category.id });
+            await guild.channels.create({
+                name: channelName,
+                type: 2,
+                parent: category.id,
+                permissionOverwrites: Object.entries(HOSPITAL_ROLES).map(([roleName, permissions]) => {
+                    const role = guild.roles.cache.find(r => r.name === roleName);
+                    return role ? { id: role.id, allow: permissions } : null;
+                }).filter(Boolean)
+            });
         }
 
         await interaction.followUp("🏥 Configuração do hospital concluída com sucesso!");
@@ -114,6 +136,6 @@ if (!process.env.TOKEN) {
 }
 
 client.login(process.env.TOKEN).catch(err => {
-    console.error("❌ Erro ao logar o bot. Verifique se o token é válido.", err);
+    console.error("❌ Erro ao logar o bot. Verifique se o token é válido e se as intents corretas estão ativadas no Discord Developer Portal.", err);
     process.exit(1);
 });
