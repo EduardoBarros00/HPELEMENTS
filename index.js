@@ -1,201 +1,66 @@
-import express from "express";
-import {
-    Client,
-    GatewayIntentBits,
-    ActionRowBuilder,
-    ButtonBuilder,
-    ButtonStyle,
-    ModalBuilder,
-    TextInputBuilder,
-    TextInputStyle,
-    PermissionsBitField,
-} from "discord.js";
-import { Sequelize, DataTypes } from "sequelize";
-import axios from "axios";
-import dotenv from "dotenv";
-import moment from "moment-timezone"; // Biblioteca para formatar data/hora
+import discord
+from discord.ext import commands
 
-dotenv.config();
+# Configuração do bot
+intents = discord.Intents.default()
+intents.guilds = True
+intents.guild_messages = True
+intents.message_content = True
+intents.members = True
 
-// Criar servidor Express para evitar erro de "Port Scan Timeout" na Render
-const app = express();
-const PORT = process.env.PORT || 3000;
+bot = commands.Bot(command_prefix="!", intents=intents)
 
-app.get("/", (req, res) => {
-    res.send("Bot está rodando!");
-});
+# Lista de cargos para o hospital
+HOSPITAL_ROLES = [
+    "Diretor", "Médico", "Enfermeiro", "Paramédico", "Paciente", "Segurança"
+]
 
-app.listen(PORT, () => {
-    console.log(`🌍 Servidor HTTP rodando na porta ${PORT}`);
-});
-
-// Criar cliente do bot
-const client = new Client({
-    intents: [
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMembers,
-        GatewayIntentBits.GuildMessages,
+# Lista de canais para o hospital
+HOSPITAL_CHANNELS = {
+    "text": [
+        "📢・anúncios",
+        "💬・chat-geral",
+        "📑・relatórios",
+        "🚨・chamados-emergência",
+        "📋・registros-hospitalares"
     ],
-});
-
-// Conectar ao banco de dados SQLite
-const sequelize = new Sequelize({
-    dialect: "sqlite",
-    storage: "whitelist.db",
-});
-
-const Whitelist = sequelize.define("Whitelist", {
-    userId: { type: DataTypes.STRING, unique: true, primaryKey: true },
-    nome: DataTypes.STRING,
-    id: DataTypes.STRING,
-    recrutadorNome: DataTypes.STRING,
-    recrutadorId: DataTypes.STRING,
-});
-
-client.once("ready", async () => {
-    await sequelize.sync();
-    console.log(`✅ Bot online como ${client.user.tag}`);
-
-    // Enviar o botão de Whitelist automaticamente no canal correto
-    const channel = await client.channels.fetch("1338158040767139923").catch(console.error);
-    if (channel) {
-        const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId("start_wl")
-                .setLabel("📋 Iniciar Whitelist")
-                .setStyle(ButtonStyle.Primary),
-        );
-        await channel.send({
-            content: "**Clique no botão abaixo para iniciar a Whitelist!**",
-            components: [row],
-        });
-    }
-
-    // Iniciar o loop de Keep-Alive
-    keep_alive_loop();
-});
-
-// IDs dos canais e cargo
-const CHANNEL_WL_BUTTON = "1338158040767139923";
-const CHANNEL_WL_REQUESTS = "1338158041958191175";
-const CHANNEL_WL_RESULTS = "1338158706810159134";
-const CHANNEL_KEEP_ALIVE = "1338192023244509195"; // Canal para Keep-Alive
-const ROLE_MEMBER = "1336379079494205521";
-
-// Keep-Alive: Envia uma mensagem a cada 2 minutos no canal especificado e faz um ping HTTP para o próprio bot
-let keepAliveMessage;
-
-async function keep_alive_loop() {
-    setInterval(async () => {
-        try {
-            const channel = await client.channels.fetch(CHANNEL_KEEP_ALIVE).catch(console.error);
-            if (channel) {
-                // Obtém a data e hora formatadas no fuso horário de Brasília
-                const dataHora = moment().tz("America/Sao_Paulo").format("DD/MM/YYYY HH:mm:ss");
-
-                const mensagem = `✅ **Bot funcionando perfeitamente!** 📅 **Data/Hora:** ${dataHora}`;
-
-                if (keepAliveMessage) {
-                    await keepAliveMessage.edit(mensagem).catch(console.error);
-                } else {
-                    keepAliveMessage = await channel.send(mensagem).catch(console.error);
-                }
-                console.log(`📌 Log atualizado no Discord: ${mensagem}`);
-            }
-        } catch (error) {
-            console.error("❌ Erro ao enviar Keep-Alive no Discord:", error);
-        }
-
-        // Ping no próprio servidor para evitar hibernação no Render
-        axios.get("https://seu-bot.onrender.com/")
-            .then(() => console.log("🔄 Keep-Alive no Render funcionando!"))
-            .catch((err) => console.error("Erro no Keep-Alive HTTP:", err));
-
-    }, 120000); // A cada 2 minutos (120000 ms)
+    "voice": [
+        "📞・sala-de-reunião",
+        "🩺・atendimento",
+        "📻・rádio-emergência"
+    ]
 }
 
-client.on("interactionCreate", async (interaction) => {
-    if (interaction.isButton() && interaction.customId === "start_wl") {
-        const modal = new ModalBuilder()
-            .setCustomId("wl_form")
-            .setTitle("Whitelist")
-            .addComponents(
-                new ActionRowBuilder().addComponents(
-                    new TextInputBuilder()
-                        .setCustomId("nome")
-                        .setLabel("Digite seu nome")
-                        .setStyle(TextInputStyle.Short)
-                        .setRequired(true),
-                ),
-                new ActionRowBuilder().addComponents(
-                    new TextInputBuilder()
-                        .setCustomId("id")
-                        .setLabel("Digite seu ID")
-                        .setStyle(TextInputStyle.Short)
-                        .setRequired(true),
-                ),
-                new ActionRowBuilder().addComponents(
-                    new TextInputBuilder()
-                        .setCustomId("recrutadorNome")
-                        .setLabel("Nome do Recrutador")
-                        .setStyle(TextInputStyle.Short)
-                        .setRequired(true),
-                ),
-                new ActionRowBuilder().addComponents(
-                    new TextInputBuilder()
-                        .setCustomId("recrutadorId")
-                        .setLabel("ID do Recrutador")
-                        .setStyle(TextInputStyle.Short)
-                        .setRequired(true),
-                ),
-            );
+@bot.event
+async def on_ready():
+    print(f"{bot.user} está online!")
 
-        await interaction.showModal(modal);
-    }
+@bot.command()
+@commands.has_permissions(administrator=True)
+async def setup_hospital(ctx):
+    guild = ctx.guild
+    
+    await ctx.send("🛠️ Configurando o servidor para o hospital... Aguarde.")
+    
+    # Criando os cargos
+    for role_name in HOSPITAL_ROLES:
+        if not discord.utils.get(guild.roles, name=role_name):
+            await guild.create_role(name=role_name)
+            await ctx.send(f"✅ Cargo criado: {role_name}")
+    
+    # Criando as categorias e canais
+    category = await guild.create_category("🏥・Hospital RP")
+    
+    for channel_name in HOSPITAL_CHANNELS["text"]:
+        await guild.create_text_channel(channel_name, category=category)
+        await ctx.send(f"✅ Canal de texto criado: {channel_name}")
+    
+    for channel_name in HOSPITAL_CHANNELS["voice"]:
+        await guild.create_voice_channel(channel_name, category=category)
+        await ctx.send(f"✅ Canal de voz criado: {channel_name}")
+    
+    await ctx.send("🏥 Configuração do hospital concluída com sucesso!")
 
-    if (interaction.isModalSubmit() && interaction.customId === "wl_form") {
-        const nome = interaction.fields.getTextInputValue("nome");
-        const id = interaction.fields.getTextInputValue("id");
-        const recrutadorNome = interaction.fields.getTextInputValue("recrutadorNome");
-        const recrutadorId = interaction.fields.getTextInputValue("recrutadorId");
-        const user = interaction.user;
-
-        await Whitelist.upsert({
-            userId: user.id,
-            nome,
-            id,
-            recrutadorNome,
-            recrutadorId,
-        });
-
-        const guild = interaction.guild;
-        const member = await guild.members.fetch(user.id);
-
-        // Atribuir o cargo de Membro
-        const role = guild.roles.cache.get(ROLE_MEMBER);
-        if (role) {
-            await member.roles.add(role).catch((err) => console.error(`Erro ao adicionar cargo: ${err}`));
-        } else {
-            console.error(`Cargo '${ROLE_MEMBER}' não encontrado!`);
-        }
-
-        // Alterar o nome do usuário
-        await member.setNickname(`${nome} | ${id}`).catch(console.error);
-
-        // Enviar resultado
-        const resultsChannel = guild.channels.cache.get(CHANNEL_WL_RESULTS);
-        if (resultsChannel) {
-            await resultsChannel.send(
-                `✅ ${user} foi aprovado na WL! Nome: **${nome}** | ID: **${id}** | Recrutador: **${recrutadorNome}** (ID: ${recrutadorId})`,
-            );
-        }
-
-        await interaction.reply({
-            content: "✅ Whitelist enviada com sucesso! Cargo de Membro adicionado.",
-            ephemeral: true,
-        });
-    }
-});
-
-// Logar o bot
-client.login(process.env.TOKEN);
+# Rodar o bot
+TOKEN = "SEU_TOKEN_AQUI"
+bot.run(TOKEN)
