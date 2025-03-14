@@ -37,7 +37,7 @@ client.once("ready", async () => {
 });
 
 // IDs dos canais
-const CHANNEL_SETUP_HOSPITAL = "1338158040767139923";
+const CHANNEL_SETUP_HOSPITAL = "1350125282933346360";
 
 // Configuração do hospital com permissões
 const HOSPITAL_ROLES = {
@@ -118,6 +118,12 @@ client.once("ready", async () => {
         const channel = await client.channels.fetch(CHANNEL_SETUP_HOSPITAL);
         if (!channel) {
             console.error(`❌ O canal com ID ${CHANNEL_SETUP_HOSPITAL} não foi encontrado! Verifique se o bot tem acesso.`);
+            return;
+        }
+        
+        // Verifica se o bot tem permissão de envio de mensagens no canal
+        if (!channel.permissionsFor(client.user).has(PermissionsBitField.Flags.SendMessages)) {
+            console.error("❌ O bot não tem permissão para enviar mensagens no canal especificado!");
             return;
         }
         
