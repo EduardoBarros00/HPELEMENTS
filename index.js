@@ -1,64 +1,112 @@
-const { Client, GatewayIntentBits } = require('discord.js');
+import express from "express";
+import {
+    Client,
+    GatewayIntentBits,
+    ActionRowBuilder,
+    ButtonBuilder,
+    ButtonStyle,
+    PermissionsBitField,
+} from "discord.js";
+import dotenv from "dotenv";
 
+dotenv.config();
+
+// Criar servidor Express para evitar erro de "Port Scan Timeout" na Render
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.get("/", (req, res) => {
+    res.send("Bot está rodando!");
+});
+
+app.listen(PORT, () => {
+    console.log(`🌍 Servidor HTTP rodando na porta ${PORT}`);
+});
+
+// Criar cliente do bot
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMessages,
         GatewayIntentBits.GuildMembers,
-        GatewayIntentBits.MessageContent
+        GatewayIntentBits.GuildMessages,
+    ],
+});
+
+client.once("ready", async () => {
+    console.log(`✅ Bot online como ${client.user.tag}`);
+});
+
+// IDs dos canais
+const CHANNEL_SETUP_HOSPITAL = "1338158040767139923";
+
+// Configuração do hospital
+const HOSPITAL_ROLES = [
+    "Diretor", "Médico", "Enfermeiro", "Paramédico", "Paciente", "Segurança"
+];
+
+const HOSPITAL_CHANNELS = {
+    text: [
+        "📢・anúncios",
+        "💬・chat-geral",
+        "📑・relatórios",
+        "🚨・chamados-emergência",
+        "📋・registros-hospitalares"
+    ],
+    voice: [
+        "📞・sala-de-reunião",
+        "🩺・atendimento",
+        "📻・rádio-emergência"
     ]
-});
+};
 
-client.once('ready', () => {
-    console.log(`${client.user.tag} está online!`);
-});
+client.on("interactionCreate", async (interaction) => {
+    if (!interaction.isButton()) return;
 
-client.on('messageCreate', async message => {
-    if (message.content === '!setup_hospital' && message.member.permissions.has('ADMINISTRATOR')) {
-        let guild = message.guild;
-
-        const roles = ["Diretor", "Médico", "Enfermeiro", "Paramédico", "Paciente", "Segurança"];
-        const textChannels = ["📢・anúncios", "💬・chat-geral", "📑・relatórios", "🚨・chamados-emergência", "📋・registros-hospitalares"];
-        const voiceChannels = ["📞・sala-de-reunião", "🩺・atendimento", "📻・rádio-emergência"];
-
-        await message.channel.send("🛠️ Configurando o servidor para o hospital... Aguarde.");
-
+    if (interaction.customId === "setup_hospital") {
+        const guild = interaction.guild;
+        
+        await interaction.reply({ content: "🛠️ Configurando o servidor para o hospital... Aguarde.", ephemeral: true });
+        
         // Criando os cargos
-        for (let roleName of roles) {
+        for (const roleName of HOSPITAL_ROLES) {
             if (!guild.roles.cache.find(role => role.name === roleName)) {
-                await guild.roles.create({ name: roleName });
-                await message.channel.send(`✅ Cargo criado: ${roleName}`);
+                await guild.roles.create({ name: roleName, permissions: [] });
             }
         }
 
-        // Criando categoria
-        let category = await guild.channels.create({
+        // Criando as categorias e canais
+        const category = await guild.channels.create({
             name: "🏥・Hospital RP",
             type: 4
         });
 
-        // Criando canais de texto
-        for (let channelName of textChannels) {
-            await guild.channels.create({
-                name: channelName,
-                type: 0,
-                parent: category.id
-            });
-            await message.channel.send(`✅ Canal de texto criado: ${channelName}`);
+        for (const channelName of HOSPITAL_CHANNELS.text) {
+            await guild.channels.create({ name: channelName, type: 0, parent: category.id });
         }
 
-        // Criando canais de voz
-        for (let channelName of voiceChannels) {
-            await guild.channels.create({
-                name: channelName,
-                type: 2,
-                parent: category.id
-            });
-            await message.channel.send(`✅ Canal de voz criado: ${channelName}`);
+        for (const channelName of HOSPITAL_CHANNELS.voice) {
+            await guild.channels.create({ name: channelName, type: 2, parent: category.id });
         }
 
-        await message.channel.send("🏥 Configuração do hospital concluída com sucesso!");
+        await interaction.followUp("🏥 Configuração do hospital concluída com sucesso!");
     }
 });
 
-client.login('MTM1MDEyNzY1NTg2MDU3MjE3MQ.GbQEPk.dX_WqM4Mr4vCooEXQQkdfPbnGjrfbYKj75FMLc');
+client.once("ready", async () => {
+    const channel = await client.channels.fetch(CHANNEL_SETUP_HOSPITAL).catch(console.error);
+    if (channel) {
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId("setup_hospital")
+                .setLabel("🏥 Configurar Hospital")
+                .setStyle(ButtonStyle.Primary),
+        );
+        await channel.send({
+            content: "Clique no botão abaixo para configurar o hospital RP!",
+            components: [row],
+        });
+    }
+});
+
+// Logar o bot
+client.login(process.env.TOKEN);
