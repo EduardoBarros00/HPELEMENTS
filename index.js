@@ -39,29 +39,23 @@ client.once("ready", async () => {
 // IDs dos canais
 const CHANNEL_SETUP_HOSPITAL = "1350125282933346360";
 
-// Configuração do hospital com permissões
+// Configuração do hospital com permissões e cores personalizadas
 const HOSPITAL_ROLES = {
-    "Diretor": [PermissionsBitField.Flags.Administrator],
-    "Médico": [PermissionsBitField.Flags.ManageChannels, PermissionsBitField.Flags.ManageMessages],
-    "Enfermeiro": [PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ViewChannel],
-    "Paramédico": [PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ViewChannel],
-    "Paciente": [PermissionsBitField.Flags.ViewChannel],
-    "Segurança": [PermissionsBitField.Flags.KickMembers, PermissionsBitField.Flags.BanMembers]
+    "Diretor": { permissions: [PermissionsBitField.Flags.Administrator], color: "#FF0000" },
+    "Médico": { permissions: [PermissionsBitField.Flags.ManageChannels, PermissionsBitField.Flags.ManageMessages], color: "#008000" },
+    "Enfermeiro": { permissions: [PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ViewChannel], color: "#00FFFF" },
+    "Paramédico": { permissions: [PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ViewChannel], color: "#FFD700" },
+    "Paciente": { permissions: [PermissionsBitField.Flags.ViewChannel], color: "#FFFFFF" }
 };
 
-const HOSPITAL_CHANNELS = {
-    text: [
-        "📢・anúncios",
-        "💬・chat-geral",
-        "📑・relatórios",
-        "🚨・chamados-emergência",
-        "📋・registros-hospitalares"
-    ],
-    voice: [
-        "📞・sala-de-reunião",
-        "🩺・atendimento",
-        "📻・rádio-emergência"
-    ]
+const HOSPITAL_CATEGORIES = {
+    "RECEPÇÃO": ["💬・chat-visitante", "🩸・recrutamento", "📅・registre-se"],
+    "EXAMES": ["📑・agendamentos", "📋・agendados", "🧪・testegravidez", "🧬・testedna"],
+    "OBSTETRÍCIA": ["📜・cartão-gestante"],
+    "ADOÇÃO": ["💚・quero-uma-família"],
+    "PAIS-BEBÊS": ["👶・regras-pais-bebês"],
+    "DIVERSOS": ["📷・instagram"],
+    "TICKETS": ["🎫・abrir-ticket"]
 };
 
 client.on("interactionCreate", async (interaction) => {
@@ -72,41 +66,31 @@ client.on("interactionCreate", async (interaction) => {
         
         await interaction.reply({ content: "🛠️ Configurando o servidor para o hospital... Aguarde.", ephemeral: true });
         
-        // Criando os cargos com permissões adequadas
-        for (const [roleName, permissions] of Object.entries(HOSPITAL_ROLES)) {
+        // Criando os cargos com permissões e cores personalizadas
+        for (const [roleName, roleData] of Object.entries(HOSPITAL_ROLES)) {
             if (!guild.roles.cache.find(role => role.name === roleName)) {
-                await guild.roles.create({ name: roleName, permissions });
+                await guild.roles.create({ name: roleName, permissions: roleData.permissions, color: roleData.color });
             }
         }
 
-        // Criando as categorias e canais com permissões adequadas
-        const category = await guild.channels.create({
-            name: "🏥・Hospital RP",
-            type: 4
-        });
-
-        for (const channelName of HOSPITAL_CHANNELS.text) {
-            await guild.channels.create({
-                name: channelName,
-                type: 0,
-                parent: category.id,
-                permissionOverwrites: Object.entries(HOSPITAL_ROLES).map(([roleName, permissions]) => {
-                    const role = guild.roles.cache.find(r => r.name === roleName);
-                    return role ? { id: role.id, allow: permissions } : null;
-                }).filter(Boolean)
+        // Criando categorias e canais com permissões adequadas
+        for (const [categoryName, channels] of Object.entries(HOSPITAL_CATEGORIES)) {
+            const category = await guild.channels.create({
+                name: `📂・${categoryName}`,
+                type: 4
             });
-        }
-
-        for (const channelName of HOSPITAL_CHANNELS.voice) {
-            await guild.channels.create({
-                name: channelName,
-                type: 2,
-                parent: category.id,
-                permissionOverwrites: Object.entries(HOSPITAL_ROLES).map(([roleName, permissions]) => {
-                    const role = guild.roles.cache.find(r => r.name === roleName);
-                    return role ? { id: role.id, allow: permissions } : null;
-                }).filter(Boolean)
-            });
+            
+            for (const channelName of channels) {
+                await guild.channels.create({
+                    name: channelName,
+                    type: 0,
+                    parent: category.id,
+                    permissionOverwrites: Object.entries(HOSPITAL_ROLES).map(([roleName, roleData]) => {
+                        const role = guild.roles.cache.find(r => r.name === roleName);
+                        return role ? { id: role.id, allow: roleData.permissions } : null;
+                    }).filter(Boolean)
+                });
+            }
         }
 
         await interaction.followUp("🏥 Configuração do hospital concluída com sucesso!");
